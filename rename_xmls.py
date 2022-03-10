@@ -1,4 +1,4 @@
-# Script to Convert XML names from RDD2020 to Numbers and also to edit the filename inside each XML file
+# Script to Convert XML names from Strings to Numbers and also to edit the filename inside each XML file
 
 import os
 from os import listdir

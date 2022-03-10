@@ -1,4 +1,4 @@
-# Script to Convert Images names from RDD2020 to Numbers
+# Script to Convert Images names from Strings to Numbers
 
 import os
 from os import listdir
