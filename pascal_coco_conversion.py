@@ -1,5 +1,12 @@
 # Script inspired and taken from https://github.com/karndeepsingh/custom_model_detectron2/blob/main/voc2coco.py
 
+__author__ = "Adnan Karol"
+__version__ = "1.0.0"
+__maintainer__ = "Adnan Karol"
+__email__ = "adnanmushtaq5@gmail.com"
+__status__ = "DEV"
+
+# Import Dependencies
 import sys
 import os
 import json
@@ -9,79 +16,125 @@ import glob
 START_BOUNDING_BOX_ID = 1
 PRE_DEFINE_CATEGORIES = None
 # If necessary, pre-define category and its id
-#PRE_DEFINE_CATEGORIES = {"D00": 1, "D10": 2, "D20": 3, "D40": 4}
+# PRE_DEFINE_CATEGORIES = {"D00": 1, "D10": 2, "D20": 3, "D40": 4}
 
 
-def get(root, name):
-    vars = root.findall(name)
-    return vars
+def find_elements(root, name):
+    """
+    Find all elements with the specified tag name in the XML root.
+
+    Args:
+        root (xml.etree.ElementTree.Element): The root element of the XML tree.
+        name (str): The tag name of the elements to find.
+
+    Returns:
+        list: A list of matching elements.
+    """
+    return root.findall(name)
 
 
-def get_and_check(root, name, length):
-    vars = root.findall(name)
-    if len(vars) == 0:
-        raise ValueError("Can not find %s in %s." % (name, root.tag))
-    if length > 0 and len(vars) != length:
-        raise ValueError(
-            "The size of %s is supposed to be %d, but is %d."
-            % (name, length, len(vars))
-        )
+def get_single_element(root, name, length):
+    """
+    Find and validate a single element with the specified tag name in the XML root.
+
+    Args:
+        root (xml.etree.ElementTree.Element): The root element of the XML tree.
+        name (str): The tag name of the element to find.
+        length (int): Expected number of matching elements.
+
+    Returns:
+        xml.etree.ElementTree.Element: The matching element.
+
+    Raises:
+        ValueError: If the element is not found or the number of elements is incorrect.
+    """
+    elements = root.findall(name)
+    if len(elements) == 0:
+        raise ValueError(f"Cannot find {name} in {root.tag}.")
+    if length > 0 and len(elements) != length:
+        raise ValueError(f"The size of {name} is supposed to be {length}, but is {len(elements)}.")
     if length == 1:
-        vars = vars[0]
-    return vars
+        elements = elements[0]
+    return elements
 
 
-def get_filename_as_int(filename):
+def extract_filename_as_int(filename):
+    """
+    Extract and convert the filename (without extension) to an integer.
+
+    Args:
+        filename (str): The filename to convert.
+
+    Returns:
+        int: The integer representation of the filename.
+
+    Raises:
+        ValueError: If the filename cannot be converted to an integer.
+    """
     try:
         filename = filename.replace("\\", "/")
         filename = os.path.splitext(os.path.basename(filename))[0]
         return int(filename)
-    except:
-        raise ValueError("Filename %s is supposed to be an integer." % (filename))
+    except ValueError:
+        raise ValueError(f"Filename {filename} is supposed to be an integer.")
 
 
-def get_categories(xml_files):
-    """Generate category name to id mapping from a list of xml files.
-    
-    Arguments:
-        xml_files {list} -- A list of xml file paths.
-    
-    Returns:
-        dict -- category name to id mapping.
+def generate_category_mapping(xml_files):
     """
-    classes_names = []
+    Generate a mapping of category names to IDs from a list of XML files.
+
+    Args:
+        xml_files (list): A list of XML file paths.
+
+    Returns:
+        dict: A dictionary mapping category names to IDs.
+    """
+    class_names = []
     for xml_file in xml_files:
         tree = ET.parse(xml_file)
         root = tree.getroot()
         for member in root.findall("object"):
-            classes_names.append(member[0].text)
-    classes_names = list(set(classes_names))
-    classes_names.sort()
-    return {name: i for i, name in enumerate(classes_names)}
+            class_names.append(member[0].text)
+    class_names = list(set(class_names))
+    class_names.sort()
+    return {name: i for i, name in enumerate(class_names)}
 
 
-def convert(xml_files, json_file):
-    json_dict = {"images": [], "type": "instances", "annotations": [], "categories": []}
-    if PRE_DEFINE_CATEGORIES is not None:
-        categories = PRE_DEFINE_CATEGORIES
-    else:
-        categories = get_categories(xml_files)
-    bnd_id = START_BOUNDING_BOX_ID
+def convert_voc_to_coco(xml_files, json_file):
+    """
+    Convert Pascal VOC annotations to COCO format and save to a JSON file.
+
+    Args:
+        xml_files (list): A list of Pascal VOC XML annotation files.
+        json_file (str): Path to the output COCO format JSON file.
+    """
+    json_dict = {
+        "images": [],
+        "type": "instances",
+        "annotations": [],
+        "categories": []
+    }
+
+    categories = PRE_DEFINE_CATEGORIES if PRE_DEFINE_CATEGORIES is not None else generate_category_mapping(xml_files)
+    bounding_box_id = START_BOUNDING_BOX_ID
+
     for xml_file in xml_files:
         tree = ET.parse(xml_file)
         root = tree.getroot()
-        path = get(root, "path")
-        if len(path) == 1:
-            filename = os.path.basename(path[0].text)
-        elif len(path) == 0:
-            filename = get_and_check(root, "filename", 1).text
+        path_elements = find_elements(root, "path")
+
+        if len(path_elements) == 1:
+            filename = os.path.basename(path_elements[0].text)
+        elif len(path_elements) == 0:
+            filename = get_single_element(root, "filename", 1).text
         else:
-            raise ValueError("%d paths found in %s" % (len(path), xml_file))
-        ## The filename must be a number
-        image_id = get_filename_as_int(filename)
-        size = get_and_check(root, "size", 1)
-        width = int(get_and_check(size, "width", 1).text)
-        height = int(get_and_check(size, "height", 1).text)
+            raise ValueError(f"{len(path_elements)} paths found in {xml_file}")
+
+        image_id = extract_filename_as_int(filename)
+        size = get_single_element(root, "size", 1)
+        width = int(get_single_element(size, "width", 1).text)
+        height = int(get_single_element(size, "height", 1).text)
+
         image = {
             "file_name": filename,
             "height": height,
@@ -89,46 +142,49 @@ def convert(xml_files, json_file):
             "id": image_id,
         }
         json_dict["images"].append(image)
-        ## Currently we do not support segmentation.
-        #  segmented = get_and_check(root, 'segmented', 1).text
-        #  assert segmented == '0'
-        for obj in get(root, "object"):
-            category = get_and_check(obj, "name", 1).text
+
+        for obj in find_elements(root, "object"):
+            category = get_single_element(obj, "name", 1).text
             if category not in categories:
-                new_id = len(categories)
-                categories[category] = new_id
+                categories[category] = len(categories)
             category_id = categories[category]
-            bndbox = get_and_check(obj, "bndbox", 1)
-            xmin = int(get_and_check(bndbox, "xmin", 1).text) - 1
-            ymin = int(get_and_check(bndbox, "ymin", 1).text) - 1
-            xmax = int(get_and_check(bndbox, "xmax", 1).text)
-            ymax = int(get_and_check(bndbox, "ymax", 1).text)
+
+            bndbox = get_single_element(obj, "bndbox", 1)
+            xmin = int(get_single_element(bndbox, "xmin", 1).text) - 1
+            ymin = int(get_single_element(bndbox, "ymin", 1).text) - 1
+            xmax = int(get_single_element(bndbox, "xmax", 1).text)
+            ymax = int(get_single_element(bndbox, "ymax", 1).text)
             assert xmax > xmin
             assert ymax > ymin
-            o_width = abs(xmax - xmin)
-            o_height = abs(ymax - ymin)
-            ann = {
-                "area": o_width * o_height,
+
+            width = xmax - xmin
+            height = ymax - ymin
+
+            annotation = {
+                "area": width * height,
                 "iscrowd": 0,
                 "image_id": image_id,
-                "bbox": [xmin, ymin, o_width, o_height],
+                "bbox": [xmin, ymin, width, height],
                 "category_id": category_id,
-                "id": bnd_id,
+                "id": bounding_box_id,
                 "ignore": 0,
                 "segmentation": [],
             }
-            json_dict["annotations"].append(ann)
-            bnd_id = bnd_id + 1
+            json_dict["annotations"].append(annotation)
+            bounding_box_id += 1
 
-    for cate, cid in categories.items():
-        cat = {"supercategory": "none", "id": cid, "name": cate}
-        json_dict["categories"].append(cat)
+    for category, cid in categories.items():
+        json_dict["categories"].append({
+            "supercategory": "none",
+            "id": cid,
+            "name": category
+        })
 
     os.makedirs(os.path.dirname(json_file), exist_ok=True)
-    json_fp = open(json_file, "w")
-    json_str = json.dumps(json_dict)
-    json_fp.write(json_str)
-    json_fp.close()
+    with open(json_file, "w") as json_fp:
+        json.dump(json_dict, json_fp)
+    
+    print(f"Conversion successful: {json_file}")
 
 
 if __name__ == "__main__":
@@ -137,12 +193,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Convert Pascal VOC annotation to COCO format."
     )
-    parser.add_argument("xml_dir", help="Directory path to xml files.", type=str)
-    parser.add_argument("json_file", help="Output COCO format json file.", type=str)
+    parser.add_argument("xml_dir", help="Directory path to XML files.", type=str)
+    parser.add_argument("json_file", help="Output COCO format JSON file.", type=str)
     args = parser.parse_args()
+    
     xml_files = glob.glob(os.path.join(args.xml_dir, "*.xml"))
+    print(f"Number of XML files: {len(xml_files)}")
 
-    # If you want to do train/test split, you can pass a subset of xml files to convert function.
-    print("Number of xml files: {}".format(len(xml_files)))
-    convert(xml_files, args.json_file)
-    print("Success: {}".format(args.json_file))
+    convert_voc_to_coco(xml_files, args.json_file)
