@@ -1,10 +1,15 @@
-# Script inspired and taken from https://github.com/karndeepsingh/custom_model_detectron2/blob/main/voc2coco.py
+"""
+Script to convert Pascal VOC annotations to COCO format.
+
+Inspired and taken from: 
+https://github.com/karndeepsingh/custom_model_detectron2/blob/main/voc2coco.py
 
 __author__ = "Adnan Karol"
 __version__ = "1.0.0"
 __maintainer__ = "Adnan Karol"
 __email__ = "adnanmushtaq5@gmail.com"
 __status__ = "DEV"
+"""
 
 # Import Dependencies
 import sys
@@ -12,12 +17,12 @@ import os
 import json
 import xml.etree.ElementTree as ET
 import glob
+import argparse
 
 START_BOUNDING_BOX_ID = 1
 PRE_DEFINE_CATEGORIES = None
 # If necessary, pre-define category and its id
 # PRE_DEFINE_CATEGORIES = {"D00": 1, "D10": 2, "D20": 3, "D40": 4}
-
 
 def find_elements(root, name):
     """
@@ -31,7 +36,6 @@ def find_elements(root, name):
         list: A list of matching elements.
     """
     return root.findall(name)
-
 
 def get_single_element(root, name, length):
     """
@@ -57,7 +61,6 @@ def get_single_element(root, name, length):
         elements = elements[0]
     return elements
 
-
 def extract_filename_as_int(filename):
     """
     Extract and convert the filename (without extension) to an integer.
@@ -78,7 +81,6 @@ def extract_filename_as_int(filename):
     except ValueError:
         raise ValueError(f"Filename {filename} is supposed to be an integer.")
 
-
 def generate_category_mapping(xml_files):
     """
     Generate a mapping of category names to IDs from a list of XML files.
@@ -98,7 +100,6 @@ def generate_category_mapping(xml_files):
     class_names = list(set(class_names))
     class_names.sort()
     return {name: i for i, name in enumerate(class_names)}
-
 
 def convert_voc_to_coco(xml_files, json_file):
     """
@@ -186,10 +187,7 @@ def convert_voc_to_coco(xml_files, json_file):
     
     print(f"Conversion successful: {json_file}")
 
-
 if __name__ == "__main__":
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Convert Pascal VOC annotation to COCO format."
     )
