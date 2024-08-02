@@ -1,6 +1,6 @@
 # Automated-License-Plate-Recognition
 
-A repository for training a custom Detectron2-based object detector specifically for car license plate detection.
+A repository for training a custom Detectron2 based object detector specifically for car license plate detection.
 
 ## Introduction
 
